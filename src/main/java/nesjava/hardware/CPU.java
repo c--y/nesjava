@@ -61,7 +61,17 @@ public class CPU {
     /**
      * Clock
      */
-    long clock;
+    long cycles;
+    
+    /**
+     * Current opcode cycle
+     */
+    long opcodeCycles;
+    
+    /**
+     * Current opcode
+     */
+    byte opcode;
     
     /**
      * Memory Access
@@ -74,6 +84,7 @@ public class CPU {
     OpcodeExecutor opExec;
     
     /**
+     * Constructor.
      * 
      * @param ram
      */
@@ -98,7 +109,7 @@ public class CPU {
         
         // Cross page penalty.
         if (Memory.isSamePage(addr, (short) (addr + index))) {
-            clock++;
+            opcodeCycles++;
         }
         
         addr += index;
@@ -184,7 +195,7 @@ public class CPU {
         
         short addr = ByteUtils.makeWord(high, low);
         if (Memory.isSamePage(addr, (short) (addr + y))) {
-            clock++;
+            opcodeCycles++;
         }
         
         addr += y;
@@ -316,5 +327,37 @@ public class CPU {
      */
     public byte pullStack() {
         return ram.read(sp++);
+    }
+    
+    /**
+     * Add penalty to opcode cycles by branch test.
+     * 
+     * @param addr
+     */
+    public void branchOpcodeCycles(short addr) {
+        if (!Memory.isSamePage((short) (pc - 1), addr)) {
+            opcodeCycles += 2;
+        } else {
+            opcodeCycles += 1;
+        }
+    }
+    
+    /*
+     * Interrupt Actions
+     */
+    
+    public void irq() {
+        
+    }
+    
+    public void nmi() {
+        
+    }
+    
+    public void reset() {
+        byte high = ram.read((short) 0xfffd);
+        byte low = ram.read((short) 0xfffc);
+        
+        pc = ByteUtils.makeWord(high, low);
     }
 }
