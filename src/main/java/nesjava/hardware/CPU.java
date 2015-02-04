@@ -3,6 +3,7 @@
  */
 package nesjava.hardware;
 
+import nesjava.hardware.util.InterruptType;
 import nesjava.util.ByteUtils;
 
 /**
@@ -69,6 +70,11 @@ public class CPU {
     long opcodeCycles;
     
     /**
+     * Wait for APU or PPU.
+     */
+    long waitCycles;
+    
+    /**
      * Current opcode
      */
     byte opcode;
@@ -79,9 +85,14 @@ public class CPU {
     Memory ram;
     
     /**
+     * Interrupt Requested
+     */
+    InterruptType interrupt;
+    
+    /**
      * Opcode Executor
      */
-    OpcodeExecutor opExec;
+    OpcodeExecutor opcodeExec;
     
     /**
      * Constructor.
@@ -90,7 +101,7 @@ public class CPU {
      */
     public CPU(Memory ram) {
         this.ram = ram;
-        this.opExec = new OpcodeExecutor(this);
+        this.opcodeExec = new OpcodeExecutor(this);
     }
     
     /**
@@ -344,20 +355,93 @@ public class CPU {
     
     /*
      * Interrupt Actions
+     * 
+     *   FFFA       - Vector address for NMI (low byte)
+     *   FFFB       - Vector address for NMI (high byte)
+     *   FFFC       - Vector address for RESET (low byte)
+     *   FFFD       - Vector address for RESET (high byte)
+     *   FFFE       - Vector address for IRQ & BRK (low byte)
+     *   FFFF       - Vector address for IRQ & BRK  (high byte)  
      */
     
+    /**
+     * Perform Interrupt Requests
+     */
     public void irq() {
+        byte high = ByteUtils.highByte(pc);
+        byte low = ByteUtils.lowByte(pc);
+        pushStack(high);
+        pushStack(low);
+        pushStack(p);
         
+        high = ram.read((short) 0xffff);
+        low = ram.read((short) 0xfffe);
+        
+        pc = ByteUtils.makeWord(high, low);
+        
+        interrupt = InterruptType.None;
     }
     
+    /**
+     * Perform Non-Maskable Interrupts.
+     */
     public void nmi() {
+        byte high = ByteUtils.highByte(pc);
+        byte low = ByteUtils.lowByte(pc);
+        pushStack(high);
+        pushStack(low);
+        pushStack(p);
         
+        high = ram.read((short) 0xfffb);
+        low = ram.read((short) 0xfffa);
+        
+        pc = ByteUtils.makeWord(high, low);
+        
+        interrupt = InterruptType.None;
     }
     
+    /**
+     * Perform Reset Interrupt.
+     */
     public void reset() {
         byte high = ram.read((short) 0xfffd);
         byte low = ram.read((short) 0xfffc);
         
         pc = ByteUtils.makeWord(high, low);
+        interrupt = InterruptType.None;
+    }
+    
+    /**
+     * One run of CPU.
+     * 
+     * @return
+     */
+    public long stepRun() {
+        if (waitCycles > 0) {
+            waitCycles--;
+            return 1;
+        }
+        
+        switch (interrupt) {
+        case Irq:
+            //TODO
+            break;
+        case Nmi:
+            nmi();
+            break;
+        case Reset:
+            reset();
+            break;
+
+        default:
+            break;
+        }
+        
+        opcode = ram.read(pc++);
+        opcodeExec.execute(opcode);
+        
+        cycles += opcodeCycles;
+        
+        return opcodeCycles;
     }
 }

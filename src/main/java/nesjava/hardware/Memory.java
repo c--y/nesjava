@@ -3,9 +3,7 @@
  */
 package nesjava.hardware;
 
-/**
- * @author chenyan
- * 
+/** 
  * Internal Memory
  * 
  * Memory layout:
@@ -14,7 +12,7 @@ package nesjava.hardware;
  *    0100-01FF  - RAM for Stack Space & Absolute Addressing
  *    0200-3FFF  - RAM for programmer use
  *    4000-7FFF  - Memory mapped I/O
- *    8000-FFF9  - ROM for programmer useage
+ *    8000-FFF9  - ROM for programmer usage
  *    FFFA       - Vector address for NMI (low byte)
  *    FFFB       - Vector address for NMI (high byte)
  *    FFFC       - Vector address for RESET (low byte)
@@ -25,6 +23,8 @@ package nesjava.hardware;
  * 
  * 0000-3FFF为RAM, 长度0x4000个字节.
  *
+ * @author chenyan
+ * 
  */
 public class Memory {
 
