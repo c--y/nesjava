@@ -5,6 +5,7 @@ package nesjava.machine;
 
 import nesjava.hardware.APU;
 import nesjava.hardware.CPU;
+import nesjava.hardware.Memory;
 import nesjava.hardware.PPU;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +26,7 @@ public class Nes implements Runnable {
     public static final int MEMORY_SIZE = 0x4000;
     
     /**
-     * Cpu
+     * CPU
      */
     CPU cpu;
     
@@ -35,9 +36,28 @@ public class Nes implements Runnable {
     PPU ppu;
     
     /**
-     * 
+     * APU
      */
     APU apu;
+    
+    /**
+     * Memory 
+     */
+    Memory memory;
+    
+    /**
+     * Constructor
+     */
+    public Nes() {
+        ppu = new PPU();
+        memory = new Memory();
+        cpu = new CPU();
+        
+        // Inject the dependencies.
+        ppu.initial(cpu);
+        memory.initialize(ppu);
+        cpu.initial(memory);
+    }
     
     public void loadRom() {}
     

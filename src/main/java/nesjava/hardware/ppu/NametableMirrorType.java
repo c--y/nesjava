@@ -7,7 +7,7 @@ package nesjava.hardware.ppu;
  * @author chenyan
  *
  */
-public enum NametableMirrorType {
+public enum NameTableMirrorType {
 
     Horizontal,
     

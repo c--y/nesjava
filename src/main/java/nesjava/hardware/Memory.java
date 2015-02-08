@@ -32,17 +32,64 @@ public class Memory {
      * Internal memory size
      */
     public static final int MEMORY_SIZE = 0x4000;
+        
+    /**
+     * Real Ram + Virtual Ram
+     */
+    byte[] units = new byte[Short.MAX_VALUE];
+        
+    /**
+     * Referenced PPU
+     */
+    PPU ppu;
     
-    public static final int xxx = 0;
+    /**
+     * Constructor
+     */
+    public Memory() {
+    }
     
-    byte[] units = new byte[MEMORY_SIZE];
+    /**
+     * Inject the PPU dependency.
+     * 
+     * @param ppuRef
+     */
+    public void initialize(PPU ppuRef) {
+        ppu = ppuRef;
+    }
     
+    /**
+     * 
+     * 
+     * @param address
+     * @param value
+     */
     public void write(short address, byte value) {
-        units[address] = value;
+        if (address >= 0x2000 && address <= 0x2007) {
+            ppu.writeReg(address, value);
+        } else if (address == 0x4014) {
+            ppu.writeReg(address, value);
+            units[address] = value;
+        } else if (address == 0x4016) {
+            // TODO pads[0]
+        } else if (address == 0x4017) {
+            // TODO pads[1]
+        } else {
+            units[address] = value;
+        }
     }
     
     public byte read(short address) {
-        return units[address];
+        if (address >= 0x2000 && address <= 0x2007) {
+            return ppu.readReg(address);
+        } else if (address == 0x4016) {
+            // TODO PAD
+        } else if (address == 0x4017) {
+            // TODO
+        } else {
+            return units[address];
+        }
+        return 0;
     }
     
     /**

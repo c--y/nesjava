@@ -96,12 +96,13 @@ public class CPU {
     
     /**
      * Constructor.
-     * 
-     * @param ram
      */
-    public CPU(Memory ram) {
-        this.ram = ram;
+    public CPU() {
         this.opcodeExec = new OpcodeExecutor(this);
+    }
+    
+    public void initial(Memory ram) {
+        this.ram = ram;
     }
     
     /**

@@ -4,10 +4,10 @@
 package nesjava.hardware.ppu;
 
 /**
- * 
  * @author chenyan
  *
  */
-public class PPUMask {
+public class AttributeTables {
 
+    byte[][] tables = new byte[4][0x40];
 }
