@@ -3,6 +3,8 @@
  */
 package nesjava.hardware.ppu;
 
+import nesjava.hardware.MemoryAccessable;
+
 /**
  * Name Table
  * 
@@ -54,7 +56,7 @@ package nesjava.hardware.ppu;
  * @author chenyan
  *
  */
-public class NameTables {
+public class NameTables implements MemoryAccessable {
     
     /**
      * 镜像类型
@@ -118,6 +120,7 @@ public class NameTables {
      * @param addr
      * @return
      */
+    @Override
     public byte read(short addr) {
         return logicalTables[(addr & 0xc00) >> 10][(addr & 0x3ff)];
     }
@@ -128,6 +131,7 @@ public class NameTables {
      * @param addr
      * @param value
      */
+    @Override
     public void write(short addr, byte value) {
         logicalTables[(addr & 0xc00) >> 10][(addr & 0x3ff)] = value;
     }

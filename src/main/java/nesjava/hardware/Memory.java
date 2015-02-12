@@ -26,7 +26,7 @@ package nesjava.hardware;
  * @author chenyan
  * 
  */
-public class Memory {
+public class Memory implements MemoryAccessable {
 
     /**
      * Internal memory size

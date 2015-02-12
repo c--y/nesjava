@@ -117,7 +117,7 @@ public class VRam {
             for (int j = 7; j >= 0; j--) {
                 int bit0 = ByteUtils.isBitSet(tile[i], j)? 1: 0;
                 int bit1 = ByteUtils.isBitSet(tile[i + halfSize], j)? 1 << 1: 0;
-                sb.append(Integer.toString(bit1 + bit0));
+                sb.append(bit0 + bit1 == 0? " ": Integer.toString(bit1 + bit0));
             }
             sb.append("\n");
         }

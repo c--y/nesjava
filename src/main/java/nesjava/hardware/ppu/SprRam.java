@@ -3,8 +3,10 @@
  */
 package nesjava.hardware.ppu;
 
+import nesjava.hardware.MemoryAccessable;
+
 /**
- * Sprite Ram
+ * Sprite Ram (Object Attribute Memory)
  * 
  *   Sprite attributes such as flipping and priority, are stored in SPR-RAM,
  *   which is a separate 256 byte area of memory, independent of ROM and
@@ -34,41 +36,91 @@ package nesjava.hardware.ppu;
  * @author chenyan
  *
  */
-public class SprRam {
+public class SprRam implements MemoryAccessable {
     
-    byte[] ram = new byte[256];
+    /**
+     * Number of Sprites in NES OAM.
+     */
+    public static final int SPRITE_NUM = 64;
+    
+    /**
+     * 4 bytes per Sprite.
+     */
+    public static final int SPRITE_SIZE = 4;
+        
+    /**
+     * 64 Sprites
+     */
+    Sprite[] sprites = new Sprite[SPRITE_NUM];
+    
+    final void checkBound(short addr) {
+        
+    }
     
     public byte read(short addr) {
-        return ram[addr];
+        // Must be less than 65
+        int sprIndex = addr / 4;
+        int byteIndex = addr % 4;
+        
+        Sprite sprite = sprites[sprIndex];
+        
+        switch (byteIndex) {
+        case 0:
+            return sprite.yCoord;
+        case 1:
+            return sprite.tileIndex;
+        case 2:
+            return sprite.attr;
+        case 3:
+            return sprite.xCoord;
+        }
+        
+        throw new IllegalStateException("SprRam:read");
     }
     
     public void write(short addr, byte value) {
-        ram[addr] = value;
+        // Must be less than 65
+        int sprIndex = addr / 4;
+        int byteIndex = addr % 4;
+        
+        Sprite sprite = sprites[sprIndex];
+        
+        switch (byteIndex) {
+        case 0:
+            sprite.yCoord = value;
+        case 1:
+            sprite.tileIndex = value;
+        case 2:
+            sprite.attr = value;
+        case 3:
+            sprite.xCoord = value;
+        }    
     }
     
-    private void checkBound(byte sprIndex) {
-        if (sprIndex < 0 || sprIndex > 63) {
-            throw new IllegalArgumentException("SpriteIndex out of bounds.");
+    public Sprite getSprite(int index) {
+        if (index < 0 || index > 64) {
+            throw new IllegalStateException();
         }
+        
+        return sprites[index];
     }
     
-    public byte getYCoord(byte sprIndex) {
-        checkBound(sprIndex);
-        return ram[sprIndex * 4];
-    }
-    
-    public byte getTileIndex(byte sprIndex) {
-        checkBound(sprIndex);
-        return ram[sprIndex * 4 + 1];
-    }
-    
-    public byte getAttr(byte sprIndex) {
-        checkBound(sprIndex);
-        return ram[sprIndex * 4 + 2];
-    }
-    
-    public byte getXCoord(byte sprIndex) {
-        checkBound(sprIndex);
-        return ram[sprIndex * 4 + 3];
+    /**
+     * Make up a OAM view for debugging.
+     * 
+     * @return
+     */
+    public byte[] viewOam() {
+        byte[] oam = new byte[SPRITE_NUM * SPRITE_SIZE];
+        
+        for (int i = 0; i < SPRITE_NUM; i++) {
+            Sprite sprite = sprites[i];
+            oam[i] = sprite.yCoord;
+            oam[i + 1] = sprite.tileIndex;
+            oam[i + 2] = sprite.attr;
+            oam[i + 3] = sprite.xCoord;
+        }
+        
+        return oam;
     }
 }
