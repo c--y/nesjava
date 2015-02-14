@@ -20,8 +20,6 @@ import nesjava.hardware.ppu.VRam;
  *
  */
 public class PPU {
-
-    public static final int SPRITES_NUM = 64;
     
     /**
      * Referenced CPU

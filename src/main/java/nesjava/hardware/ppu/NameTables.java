@@ -105,7 +105,7 @@ public class NameTables implements MemoryAccessable {
             logicalTables[2] = hardTable0;
             logicalTables[3] = hardTable0;
             break;
-        case FourScreen:
+        case FourScreen: // FIXME
             logicalTables[0] = hardTable1;
             logicalTables[1] = hardTable1;
             logicalTables[2] = hardTable1;

@@ -3,10 +3,8 @@
  */
 package nesjava.hardware.ppu;
 
-import java.util.Arrays;
-
+import nesjava.hardware.MemoryAccessable;
 import nesjava.hardware.PPU;
-import nesjava.util.ByteUtils;
 
 /**
  * Video Ram
@@ -16,17 +14,14 @@ import nesjava.util.ByteUtils;
  * @author chenyan
  *
  */
-public class VRam {
+public class VRam implements MemoryAccessable {
     
     /** 
      * PPU
      */
     PPU ppu;
     
-    /**
-     * one tile = 16 bytes
-     */
-    public static final int TILE_SIZE = 16;
+
     
     /**
      * Internal VRam
@@ -40,17 +35,23 @@ public class VRam {
      *  #0 0x0000, size=0x1000
      *  #1 0x1000, size=0x1000
      */
-    byte[][] patternTables = new byte[2][0x1000];
+    // byte[][] patternTables = new byte[2][0x1000];
+    PatternTables patternTables = new PatternTables();
     
     /**
      * 4 Attribute Tables
      */
-    byte[][] attributeTables = new byte[4][0x40];
+    AttributeTables attributeTables = new AttributeTables();
     
     /**
      * NameTables
      */
     NameTables nameTables = new NameTables();
+    
+    /**
+     * 2 Palettes
+     */
+    Palettes palettes = new Palettes();
     
     /**
      * Constructor
@@ -67,15 +68,39 @@ public class VRam {
      * @param addr
      * @return
      */
-    public byte readVRam(short addr) {
-        if (addr >= 0x0000 && addr < 0x1000) {
-            // pattern table #0
-            return patternTables[0][addr];
-        } else if (addr >= 0x1000 && addr < 0x2000) {
-            // pattern table #1
-            return patternTables[1][addr & 0xfff];
-        } 
-        return 0;
+    public byte read(short addr) {
+        if (addr >= 0x0000 && addr < 0x2000) {
+            // pattern table #0, #1
+            return patternTables.read(addr);
+        } else if (addr >= 0x2000 && addr < 0x23c0) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x23c0 && addr < 0x2400) {
+            return attributeTables.read(addr);
+        } else if (addr >= 0x2400 && addr < 0x27c0) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x27c0 && addr < 0x2800) {
+            return attributeTables.read(addr);
+        } else if (addr >= 0x2800 && addr < 0x2bc0) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x2bc0 && addr < 0x2c00) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x2c00 && addr < 0x2fc0) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x2fc0 && addr < 0x3000) {
+            return nameTables.read(addr);
+        } else if (addr >= 0x3000 && addr < 0x3f00) {
+            // Mirror of 0x2000~0x2eff
+            return this.read((short) (addr - 0x1000));
+        } else if (addr >= 0x3f00 && addr < 0x4000) {
+            return palettes.read(addr);
+        } else if (addr >= 0x4000 && addr < 0xc000) {
+            // TODO optimize
+            // Mirror of 0x0000~0x3fff
+            short mirrorAddr = (short) (addr - (addr * (addr / 0x4000)));
+            return this.read(mirrorAddr);
+        }
+       
+        throw new IllegalArgumentException();
     }
     
     /**
@@ -84,44 +109,39 @@ public class VRam {
      * @param addr
      * @param value
      */
-    public void writeVRam(short addr, byte value) {
-        
+    public void write(short addr, byte value) {
+        if (addr >= 0x0000 && addr < 0x2000) {
+            // pattern table #0, #1
+            patternTables.write(addr, value);
+        } else if (addr >= 0x2000 && addr < 0x23c0) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x23c0 && addr < 0x2400) {
+            attributeTables.write(addr, value);
+        } else if (addr >= 0x2400 && addr < 0x27c0) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x27c0 && addr < 0x2800) {
+            attributeTables.write(addr, value);
+        } else if (addr >= 0x2800 && addr < 0x2bc0) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x2bc0 && addr < 0x2c00) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x2c00 && addr < 0x2fc0) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x2fc0 && addr < 0x3000) {
+            nameTables.write(addr, value);
+        } else if (addr >= 0x3000 && addr < 0x3f00) {
+            // Mirror of 0x2000~0x2eff
+            this.write((short) (addr - 0x1000), value);
+        } else if (addr >= 0x3f00 && addr < 0x4000) {
+            palettes.write(addr, value);
+        } else if (addr >= 0x4000 && addr < 0xc000) {
+            // TODO optimize
+            // Mirror of 0x0000~0x3fff
+            short mirrorAddr = (short) (addr - (addr * (addr / 0x4000)));
+            this.write(mirrorAddr, value);
+        }
+       
+        throw new IllegalArgumentException();
     }
     
-    public byte[] readTile(int ptIndex, int tileIndex) {
-        if (ptIndex < 0 || ptIndex > 1) {
-            throw new IllegalArgumentException();
-        }
-        
-        byte[] pt = patternTables[ptIndex];
-        int offset = tileIndex * TILE_SIZE;
-        return Arrays.copyOfRange(pt, offset, TILE_SIZE);
-    }
-    
-    /**
-     * Dump a tile bytes.
-     * 
-     * For debug.
-     * 
-     * @param tile
-     * @return
-     */
-    public static String dumpTile(byte[] tile) {
-        // TODO params check
-        
-        StringBuilder sb = new StringBuilder();
-        int halfSize = TILE_SIZE / 2;
-        
-        for (int i = 0; i < halfSize; i++) {
-            // each bit
-            for (int j = 7; j >= 0; j--) {
-                int bit0 = ByteUtils.isBitSet(tile[i], j)? 1: 0;
-                int bit1 = ByteUtils.isBitSet(tile[i + halfSize], j)? 1 << 1: 0;
-                sb.append(bit0 + bit1 == 0? " ": Integer.toString(bit1 + bit0));
-            }
-            sb.append("\n");
-        }
-        
-        return sb.toString();
-    }
 }
