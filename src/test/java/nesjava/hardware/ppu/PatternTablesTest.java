@@ -2,7 +2,7 @@ package nesjava.hardware.ppu;
 
 import org.testng.annotations.Test;
 
-public class VRamTest {
+public class PatternTablesTest {
 
   @Test
   public void dumpTile() {
@@ -11,7 +11,7 @@ public class VRamTest {
               0x00, 0x28, 0x44, (byte) 0x82, 0x00, (byte) 0x82, (byte) 0x82, 0x00
       };
       
-      System.out.println(VRam.dumpTile(tile));
+      System.out.println(PatternTables.dumpTile(tile));
       
   }
 }

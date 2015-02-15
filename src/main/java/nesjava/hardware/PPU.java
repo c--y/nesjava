@@ -10,7 +10,6 @@ import nesjava.hardware.ppu.RegControl;
 import nesjava.hardware.ppu.RegMask;
 import nesjava.hardware.ppu.RegStatus;
 import nesjava.hardware.ppu.SprRam;
-import nesjava.hardware.ppu.Sprite;
 import nesjava.hardware.ppu.VRam;
 
 /**
@@ -22,6 +21,16 @@ import nesjava.hardware.ppu.VRam;
 public class PPU {
     
     /**
+     * NTSC width
+     */
+    public static final int SCREEN_WIDTH = 256;
+    
+    /**
+     * NTSC height
+     */
+    public static final int SCREEN_HEIGHT = 240;
+    
+    /**
      * Referenced CPU
      */
     CPU cpu;
@@ -31,32 +40,32 @@ public class PPU {
     /**
      * Controller(0x2000) write
      */
-    RegControl control;
+    RegControl controlReg;
     
     /**
      * Mask(0x2001) write
      */
-    RegMask mask;
+    RegMask maskReg;
     
     /**
      * Status(0x2002) read
      */
-    RegStatus status;
+    RegStatus statusReg;
     
     /**
      * OAM Address(0x2003)
      */
-    byte oamAddress;
+    byte oamAddressReg;
     
     /**
      * OAM Data(0x2004)
      */
-    byte oamData;
+    byte oamDataReg;
     
     /**
-     * Scroll(0x2005)
+     * Scroll(0x2005), fine x
      */
-    byte scroll;
+    byte scrollReg;
     
     /**
      * Address(0x2006), 16bits
@@ -67,12 +76,20 @@ public class PPU {
      *   address will increment either by 1 or by 32 after each
      *   access to $2007 (see "PPU Memory").
      */
-    short address;
+    short addressReg;
+    
+    /**
+     * 0x2005 and 0x2006 share this latch.
+     */
+    boolean scrollLatch = false;
     
     /**
      * Data(0x2007)
      */
-    byte data;
+    /**
+     * 
+     */
+    byte dataReg;
     
     // Registers end
     
@@ -80,12 +97,6 @@ public class PPU {
      * Address Latch.
      */
     short latchAddress;
-    
-    /**
-     * Latch to control the twice write with address register.
-     * if not writeLatch then write lower 8bits of address else upper 8bits.
-     */
-    boolean writeLatch = false;
     
     /**
      * Video Ram
@@ -98,11 +109,6 @@ public class PPU {
     SprRam sprRam = new SprRam();
     
     /**
-     * 64 Sprites
-     */
-    Sprite[] sprites = new Sprite[SPRITES_NUM];
-    
-    /**
      * Frame Buffer lock
      */
     Lock frameLock = new ReentrantLock();
@@ -110,23 +116,36 @@ public class PPU {
     /**
      * Screen Frame Buffer
      */
-    long[] frame = new long[256 * 240]; 
+    long[] frameBuffer = new long[SCREEN_WIDTH * SCREEN_HEIGHT]; 
     
-    
+    /**
+     * Current cycle
+     */
     long cycle;
     
+    /**
+     * 
+     */
+    long cycles;
+    
+    /**
+     * Current scanline
+     */
     int scanLine;
+    
+    boolean enabledNmi = false;
+    
+    boolean enabledVbl = false;
+    
+    boolean enabledOverscan = true;
+    
+    boolean enabledSpriteLimit = true;
     
     
     /**
      * PPU constructor.
      */
     public PPU() {
-        vram = new VRam(this);
-        for (byte i = 0; i < SPRITES_NUM; i++) {
-            sprites[i] = new Sprite(i, sprRam, vram);
-        }
-        
         cycle = 0;
         scanLine = 241;
     }
@@ -150,28 +169,28 @@ public class PPU {
         // 0x07 = 111b
         switch (addr & 0x07) {
         case 0x00:
-            control.write(value);
+            writeControl(value);
             break;
         case 0x01:
-            mask.write(value);
+            maskReg.write(value);
             break;
         case 0x02:
-            status.write(value);
+            statusReg.write(value);
             break;
         case 0x03:
-            oamAddress = value;
+            oamAddressReg = value;
             break;
         case 0x04:
             writeOamData(value);
             break;
         case 0x05:
-            scroll = value;
+            scrollReg = value;
             break;
         case 0x06:
-            address = value;
+            addressReg = value;
             break;
         case 0x07:
-            data = value;
+            dataReg = value;
             break;
         }
     }
@@ -187,72 +206,124 @@ public class PPU {
         // 0x07 = 111b
         switch (addr & 0x07) {
         case 0x00:
-            value = control.read();
+            value = controlReg.read();
             break;
         case 0x01:
-            value = mask.read();
+            value = maskReg.read();
             break;
         case 0x02:
-            value = status.read();
+            value = statusReg.read();
             break;
         case 0x03:
-            value = oamAddress;
+            value = oamAddressReg;
             break;
         case 0x04:
             value = readOamData();
             break;
         case 0x05:
-            value = scroll;
+            value = scrollReg;
             break;
         case 0x07:
-            value = data;
+            value = dataReg;
             break;
         }
         return value;
     }
     
+    /**
+     * Read the OAM Data register.
+     * 
+     * @return
+     */
     public byte readOamData() {
-        return sprRam.read(oamAddress);
+        return sprRam.read(oamAddressReg);
     }
     
+    /**
+     * Write the OAM Data register.
+     * 
+     * @param value
+     */
     public void writeOamData(byte value) {
-        sprRam.write(oamAddress, value);
+        sprRam.write(oamAddressReg, value);
         // TODO updateBufferedSpriteMem
         
-        oamAddress++;
-        oamAddress %= 256;
+        oamAddressReg++;
+        oamAddressReg %= 256;
         
     }
     
-    public void writeAddress(byte value) {
-        if (writeLatch) {
-            latchAddress = (short) (latchAddress & 0xff);
-            latchAddress |= ((value) & 0x3f << 8);
+    /*
+     * Writing to 0x2000, 0x2005, 0x2006 are affected by scrolling.
+     */
+    
+    /**
+     *  Write the control reg(0x2000)
+     * 
+     * @param value
+     */
+    public void writeControl(byte value) {
+        controlReg.write(value);
+        latchAddress = (short) ((latchAddress & 0xf3ff) | (controlReg.getBaseNameTable() << 10));
+    }
+    
+    /**
+     * Write the scroll reg(0x2005).
+     * 
+     * @param value
+     */
+    public void writeScroll(byte value) {
+        if (scrollLatch) {
+            latchAddress &= 0x7fe0;
+            latchAddress |= ((value & 0xf8) >> 3);
+            scrollReg = (byte) (value & 0x07);
         } else {
-            // TODO
-            latchAddress = (short) (latchAddress & 0x7f00);
-            latchAddress |= value;
-            address = latchAddress;
+            latchAddress &= 0xc1f;
+            latchAddress |= (((value & 0xf8) << 2) | ((value & 0x07) << 12)); 
         }
         
-        writeLatch = !writeLatch;
+        scrollLatch = !scrollLatch;
     }
     
+    /**
+     * Write the address reg(0x2006)
+     * 
+     * @param value
+     */
+    public void writeAddress(byte value) {
+        if (scrollLatch) {
+            latchAddress &= 0xff;
+            latchAddress |= ((value & 0x3f) << 8);
+        } else {
+            latchAddress &= 0x7f00;
+            latchAddress |= value;
+            addressReg = latchAddress;
+        }
+        
+        scrollLatch = !scrollLatch;
+    }
+      
     /**
      * Increment the VRAM address.
      */
     public void incVramAddr() {
-        if (control.isVerticalWrite()) {
-            address += 0x20;
+        if (controlReg.isVerticalWrite()) {
+            addressReg += 0x20;
         } else {
-            address += 0x01;
+            addressReg += 0x01;
         }
     }
     
+    /**
+     * Sprite Evaluation
+     */
     public void spriteEvaluation() {
         
     }
 
+    /**
+     * One run of PPU
+     */
     public void stepRun() {        
     }
 

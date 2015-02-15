@@ -53,10 +53,28 @@ public class SprRam implements MemoryAccessable {
      */
     Sprite[] sprites = new Sprite[SPRITE_NUM];
     
-    final void checkBound(short addr) {
+    /**
+     * Constructor
+     */
+    public SprRam() {
+        for (int i = 0; i < SPRITE_NUM; i++) {
+            sprites[i] = new Sprite();
+        }
+    }
+    
+    /**
+     * Check bounds.
+     * 
+     * @param addr
+     */
+    private void checkBound(short addr) {
         
     }
     
+    /* (non-Javadoc)
+     * @see nesjava.hardware.MemoryAccessable#read(short)
+     */
+    @Override
     public byte read(short addr) {
         // Must be less than 65
         int sprIndex = addr / 4;
@@ -78,6 +96,10 @@ public class SprRam implements MemoryAccessable {
         throw new IllegalStateException("SprRam:read");
     }
     
+    /* (non-Javadoc)
+     * @see nesjava.hardware.MemoryAccessable#write(short, byte)
+     */
+    @Override
     public void write(short addr, byte value) {
         // Must be less than 65
         int sprIndex = addr / 4;
@@ -97,6 +119,12 @@ public class SprRam implements MemoryAccessable {
         }    
     }
     
+    /**
+     * Get the Sprite by index.
+     * 
+     * @param index
+     * @return
+     */
     public Sprite getSprite(int index) {
         if (index < 0 || index > 64) {
             throw new IllegalStateException();
