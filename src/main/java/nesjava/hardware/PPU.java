@@ -119,6 +119,11 @@ public class PPU {
     long[] frameBuffer = new long[SCREEN_WIDTH * SCREEN_HEIGHT]; 
     
     /**
+     * Frame Count 
+     */
+    long frameCount = 0;
+    
+    /**
      * Current cycle
      */
     long cycle;
@@ -131,7 +136,7 @@ public class PPU {
     /**
      * Current scanline
      */
-    int scanLine;
+    int scanline;
     
     boolean enabledNmi = false;
     
@@ -147,7 +152,7 @@ public class PPU {
      */
     public PPU() {
         cycle = 0;
-        scanLine = 241;
+        scanline = 241;
     }
     
     /**
@@ -317,14 +322,86 @@ public class PPU {
     /**
      * Sprite Evaluation
      */
-    public void spriteEvaluation() {
+    public void evaluateSprite() {
         
     }
 
     /**
-     * One run of PPU
+     * One run of PPU, just used in NTSC.
      */
-    public void stepRun() {        
+    public void runStep() {     
+        if (scanline == 240) {
+            // Idle scanline
+            if (cycle == 1) {
+                if (!enabledVbl) {
+                    statusReg.setInVBlank(true);
+                }
+                
+                // 0x2000:d7 enable/disable NMIs
+                if (controlReg.isEnabledVBlank() && enabledNmi) {
+                    cpu.nmi();
+                }
+                
+                render();
+            }
+        } else if (scanline == 260) {
+            // End of vblank.
+            if (cycle == 1) {
+                statusReg.setInVBlank(false);
+            } else if (cycle == 341) {
+                // End of scanline cycles.
+                scanline--;
+                cycle = 1;
+                frameCount++;
+                return;
+            }        
+        } else if (scanline < 240 && scanline > -1) {
+            if (cycle == 254) {
+                if (maskReg.isShowBackground()) {
+                    // TODO mmc5
+                    
+                    
+                }
+                
+                if (maskReg.isShowSprites()) {
+                    // TODO mmc5
+                    
+                    evaluateSprite();
+                }
+            } else if (cycle == 256) {
+                if (controlReg.isSpritePatternTable() &&
+                        !controlReg.isScreenPatternTable()) {
+                    // TODO mmc3
+                }
+            }
+        } else if (scanline == -1) {
+            // Invisible scanline
+            if (cycle == 1) {
+                statusReg.setSprite0Hit(false);
+                statusReg.setSpriteOverflow(false);
+            } else if (cycle == 304) {
+                // Copy scroll latch into VRAMADDR reg.
+                if (maskReg.isShowBackground() || maskReg.isShowSprites()) {
+                    addressReg = latchAddress;
+                }
+            }
+        }
+        
+        // Scanline in 240 ~ 260, are vblank time, electron gun repositions.
+        // End of one line scan.
+        if (cycle == 341) {
+            cycle = 0;
+            scanline++;
+            
+            // mmc5
+        }
+        
+        cycle++;
     }
 
+    void render() {
+        for (int i = 0; i < frameBuffer.length; i++) {
+            
+        }
+    }
 }

@@ -417,7 +417,7 @@ public class CPU {
      * 
      * @return
      */
-    public long stepRun() {
+    public long runStep() {
         if (waitCycles > 0) {
             waitCycles--;
             return 1;

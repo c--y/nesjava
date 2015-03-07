@@ -10,7 +10,7 @@ package nesjava.hardware;
  */
 public class APU {
 
-    public void stepRun() {
+    public void runStep() {
         // TODO Auto-generated method stub
         
     }

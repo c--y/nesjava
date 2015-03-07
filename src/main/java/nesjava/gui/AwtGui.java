@@ -8,5 +8,14 @@ package nesjava.gui;
  *
  */
 public class AwtGui {
+    
+    /**
+     * Awt GUI
+     */
+    public AwtGui() {
+        
+    }
+    
+    
 
 }

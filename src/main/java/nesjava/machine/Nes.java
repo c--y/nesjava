@@ -70,14 +70,14 @@ public class Nes implements Runnable {
     @Override
     public void run() {
         while(true) {
-            long stepCycles = cpu.stepRun();
+            long stepCycles = cpu.runStep();
             
             for (int i = 0; i < 3 * stepCycles; i++) {
-                ppu.stepRun();
+                ppu.runStep();
             }
             
             for (int i = 0; i < stepCycles; i++) {
-                apu.stepRun();
+                apu.runStep();
             }
         }
     }
